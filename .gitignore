@@ -1,0 +1,59 @@
+# Environment variables
+.env
+.env.local
+.env.*.local
+.env.production
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+.pytest_cache/
+
+# Virtual environments
+venv/
+env/
+ENV/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Temporary and log files
+temp_*
+*.tmp
+logs/*.log
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
+
+# FAISS indices (if saved to disk)
+*.index
+*.faiss
+
+# Uploaded documents (if stored locally)
+uploads/
+temp_uploads/
+data/uploads/
