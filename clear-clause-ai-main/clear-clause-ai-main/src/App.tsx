@@ -13,6 +13,7 @@ import About from "./pages/About";
 import Help from "./pages/Help";
 import Contact from "./pages/Contact";
 import NotFound from "./pages/NotFound";
+import News from "./components/news/News";
 import { useState } from "react";
 
 const queryClient = new QueryClient({
@@ -54,6 +55,7 @@ const App = () => {
                 <Route path="/about" element={<About currentLanguage={currentLanguage} />} />
                 <Route path="/help" element={<Help currentLanguage={currentLanguage} />} />
                 <Route path="/contact" element={<Contact currentLanguage={currentLanguage} />} />
+                <Route path="/news" element={<News currentLanguage={currentLanguage} />} />
                 {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
                 <Route path="*" element={<NotFound />} />
               </Routes>

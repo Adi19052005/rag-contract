@@ -12,6 +12,8 @@ import sys
 import time
 import asyncio
 from datetime import datetime
+import feedparser
+import re
 
 from document_loader import load_document_with_meta
 from chunking import chunk_text
@@ -444,6 +446,83 @@ Document text:
     except Exception as e:
         logger.exception("Clause extraction failed")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+def fetch_news_from_rss(topic: str):
+    """Fetch a small set of articles from Google News RSS for a topic.
+
+    Returns a list of simple dicts with keys: id,title,description,url,publishedDate,source,image,topic
+    """
+    try:
+        rss_url = f"https://news.google.com/rss/search?q={topic.replace(' ', '+')}&hl=en-US&gl=US&ceid=US:en"
+        logger.info(f"Fetching news RSS: {rss_url}")
+        feed = feedparser.parse(rss_url)
+        if not feed or 'entries' not in feed:
+            logger.warning("Failed to parse news RSS feed")
+            return []
+
+        articles = []
+        seen = set()
+        for idx, entry in enumerate(feed.entries[:10]):
+            try:
+                title = (entry.get('title') or '').strip()
+                if not title or title in seen:
+                    continue
+                seen.add(title)
+
+                url = entry.get('link', '')
+                description = entry.get('summary', '')
+                if '<' in description and '>' in description:
+                    description = re.sub(r'<[^>]+>', '', description).strip()
+
+                published = entry.get('published', '')
+                source = entry.get('source', {}).get('title', '') if entry.get('source') else 'Google News'
+
+                # Attempt to extract image from common RSS fields
+                image = ''
+                if hasattr(entry, 'media_thumbnail') and entry.media_thumbnail:
+                    try:
+                        image = entry.media_thumbnail[0].get('url', '')
+                    except Exception:
+                        image = ''
+                if not image and hasattr(entry, 'links') and entry.links:
+                    for l in entry.links:
+                        if l.get('rel') == 'image' or (l.get('type') or '').startswith('image/'):
+                            image = l.get('href', '')
+                            break
+
+                articles.append({
+                    'id': f"{topic.lower()}-{len(articles)}",
+                    'title': title,
+                    'description': (description or title)[:250],
+                    'url': url,
+                    'publishedDate': published,
+                    'source': source,
+                    'image': image,
+                    'topic': topic.lower(),
+                })
+            except Exception:
+                logger.exception("Error parsing RSS entry")
+                continue
+
+        return articles
+    except Exception:
+        logger.exception("Failed to fetch news RSS")
+        return []
+
+
+@app.get(f"{settings.API_PREFIX}/news/{{topic}}", tags=["News"], summary="Proxy Google News RSS for a topic")
+def get_news_proxy(topic: str):
+    """GET /api/news/{topic} - return news articles for the given topic from Google News RSS."""
+    topic_clean = (topic or '').strip()
+    if not topic_clean:
+        raise HTTPException(status_code=400, detail="Topic is required")
+
+    articles = fetch_news_from_rss(topic_clean)
+    if not articles:
+        raise HTTPException(status_code=404, detail=f"No news found for '{topic_clean}'")
+
+    return articles
 
 
 @app.get(
