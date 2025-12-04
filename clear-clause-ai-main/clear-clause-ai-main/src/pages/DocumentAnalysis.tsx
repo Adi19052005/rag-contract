@@ -44,6 +44,10 @@ export default function DocumentAnalysis({ currentLanguage }: DocumentAnalysisPr
 
   const [summaryText, setSummaryText] = useState<string | null>(null);
   const [qaAnswer, setQaAnswer] = useState<string | null>(null);
+  const [qaHistory, setQaHistory] = useState<Array<{ question: string; answer: string }>>([]);
+  const [currentQuestion, setCurrentQuestion] = useState("");
+  const [selectedDocumentClause, setSelectedDocumentClause] = useState<string>("");
+  const [standardClauseInput, setStandardClauseInput] = useState<string>("");
   // Store raw extracted output from API (may be array or JSON-string)
   const [extractedClausesRaw, setExtractedClausesRaw] = useState<any>(null);
   const [analysisMetrics, setAnalysisMetrics] = useState<any | null>(null);
@@ -64,7 +68,8 @@ export default function DocumentAnalysis({ currentLanguage }: DocumentAnalysisPr
         clauses: "Clause Extraction",
         summary: "Simplified Summary", 
         comparison: "Template Comparison",
-        voice: "Voice Assistant"
+        voice: "Voice Assistant",
+      qa: "Ask Questions"
       },
       analysis: {
         riskLevel: "Risk Assessment",
@@ -88,7 +93,14 @@ export default function DocumentAnalysis({ currentLanguage }: DocumentAnalysisPr
         title: "Template Comparison",
         standard: "Standard Clause",
         document: "Your Document",
-        deviations: "Deviations Found"
+        deviations: "Deviations Found",
+        selectDocumentClause: "Select a clause from document",
+        enterStandardClause: "Enter standard clause text to compare",
+        compareButton: "Compare Clauses",
+        comparing: "Comparing...",
+        noClausesExtracted: "No clauses available. Extract clauses first.",
+        enterBothClauses: "Please enter both clauses to compare",
+        comparisonResult: "Comparison Result"
       },
       voice: {
         title: "Voice Assistant",
@@ -96,6 +108,12 @@ export default function DocumentAnalysis({ currentLanguage }: DocumentAnalysisPr
         startRecording: "Start Recording",
         stopRecording: "Stop Recording",
         playback: "Play Summary"
+      },
+      qa: {
+        title: "Ask Questions About the Document",
+        placeholder: "Type your question about the document...",
+        send: "Send",
+        askAnother: "Ask Another Question"
       }
     },
     hi: {
@@ -105,7 +123,8 @@ export default function DocumentAnalysis({ currentLanguage }: DocumentAnalysisPr
         clauses: "खंड निष्कर्षण",
         summary: "सरलीकृत सारांश",
         comparison: "टेम्प्लेट तुलना",
-        voice: "आवाज़ सहायक"
+        voice: "आवाज़ सहायक",
+      qa: "प्रश्न पूछें"
       },
       analysis: {
         riskLevel: "जोखिम मूल्यांकन",
@@ -129,7 +148,14 @@ export default function DocumentAnalysis({ currentLanguage }: DocumentAnalysisPr
         title: "टेम्प्लेट तुलना",
         standard: "मानक खंड",
         document: "आपका दस्तावेज़",
-        deviations: "पाए गए विचलन"
+        deviations: "पाए गए विचलन",
+        selectDocumentClause: "दस्तावेज़ से एक खंड चुनें",
+        enterStandardClause: "तुलना के लिए मानक खंड टेक्स्ट दर्ज करें",
+        compareButton: "खंडों की तुलना करें",
+        comparing: "तुलना जारी है...",
+        noClausesExtracted: "कोई खंड उपलब्ध नहीं है। पहले खंड निकालें।",
+        enterBothClauses: "तुलना के लिए दोनों खंड दर्ज करें",
+        comparisonResult: "तुलना परिणाम"
       },
       voice: {
         title: "आवाज़ सहायक",
@@ -137,6 +163,12 @@ export default function DocumentAnalysis({ currentLanguage }: DocumentAnalysisPr
         startRecording: "रिकॉर्डिंग शुरू करें",
         stopRecording: "रिकॉर्डिंग बंद करें",
         playback: "सारांश चलाएं"
+      },
+      qa: {
+        title: "दस्तावेज़ के बारे में प्रश्न पूछें",
+        placeholder: "दस्तावेज़ के बारे में अपना प्रश्न टाइप करें...",
+        send: "भेजें",
+        askAnother: "एक और प्रश्न पूछें"
       }
     }
   };
@@ -197,14 +229,27 @@ export default function DocumentAnalysis({ currentLanguage }: DocumentAnalysisPr
   const handleQuery = (question: string) => {
     if (!sessionId) return;
     queryMutation.mutate({ sessionId, query: question }, {
-      onSuccess: (data) => setQaAnswer(data.answer),
+      onSuccess: (data) => {
+        setQaAnswer(data.answer);
+      },
     });
   };
 
   // Compare handler
-  const handleCompare = (clauseText: string) => {
-    if (!sessionId) return;
-    compareMutation.mutate({ sessionId, clause: clauseText }, {
+  const handleCompare = (documentClause: string, standardClause: string) => {
+    if (!sessionId || !documentClause.trim() || !standardClause.trim()) return;
+    
+    // Create a comparison prompt that includes both clauses
+     const comparisonPrompt = `Compare these two clauses in exactly 3 lines:
+  - Line 1: Key differences
+  - Line 2: Missing provisions in document clause
+  - Line 3: Risk level (safe/moderate/high) and recommendation
+
+  DOCUMENT CLAUSE: ${documentClause}
+
+  STANDARD CLAUSE: ${standardClause}`;
+
+    compareMutation.mutate({ sessionId, clause: comparisonPrompt }, {
       onSuccess: (data) => setComparisonResult(data.comparison),
     });
   };
@@ -484,10 +529,11 @@ export default function DocumentAnalysis({ currentLanguage }: DocumentAnalysisPr
         <Card className="legal-card animate-fade-in">
           <Tabs value={activeTab} onValueChange={setActiveTab}>
             <CardHeader>
-              <TabsList className="grid w-full grid-cols-4">
+              <TabsList className="grid w-full grid-cols-5">
                 <TabsTrigger value="clauses">{t.tabs.clauses}</TabsTrigger>
                 <TabsTrigger value="summary">{t.tabs.summary}</TabsTrigger>
                 <TabsTrigger value="comparison">{t.tabs.comparison}</TabsTrigger>
+                <TabsTrigger value="qa">{t.tabs.qa}</TabsTrigger>
                 <TabsTrigger value="voice">{t.tabs.voice}</TabsTrigger>
               </TabsList>
             </CardHeader>
@@ -595,37 +641,187 @@ export default function DocumentAnalysis({ currentLanguage }: DocumentAnalysisPr
 
               <TabsContent value="comparison" className="space-y-4">
                 <h3 className="text-lg font-semibold mb-4">{t.comparison.title}</h3>
+                
+                {/* Clause Selection and Input */}
                 <div className="grid md:grid-cols-2 gap-4">
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="text-base">{t.comparison.standard}</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <p className="text-sm text-muted-foreground">Standard clause templates will be displayed here.</p>
-                    </CardContent>
-                  </Card>
+                  {/* Document Clause Selection */}
                   <Card>
                     <CardHeader>
                       <CardTitle className="text-base">{t.comparison.document}</CardTitle>
+                      <CardDescription>{t.comparison.selectDocumentClause}</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      {extractMutation.isPending || !parsedClauses || parsedClauses.length === 0 ? (
+                        <div className="text-sm text-muted-foreground">
+                          {extractMutation.isPending ? "Extracting clauses..." : t.comparison.noClausesExtracted}
+                        </div>
+                      ) : (
+                        <>
+                          <select
+                            value={selectedDocumentClause}
+                            onChange={(e) => setSelectedDocumentClause(e.target.value)}
+                            className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+                          >
+                            <option value="">-- Select a clause --</option>
+                            {parsedClauses.map((clause: any, idx: number) => (
+                              <option key={idx} value={clause.text}>
+                                {clause.type.substring(0, 50)}... ({clause.risk})
+                              </option>
+                            ))}
+                          </select>
+                          
+                          {selectedDocumentClause && (
+                            <div className="bg-muted/50 rounded-lg p-3 border">
+                              <p className="text-xs font-semibold text-muted-foreground mb-2">Selected Clause:</p>
+                              <p className="text-sm whitespace-pre-wrap">{selectedDocumentClause}</p>
+                            </div>
+                          )}
+                        </>
+                      )}
+                    </CardContent>
+                  </Card>
+
+                  {/* Standard Clause Input */}
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="text-base">{t.comparison.standard}</CardTitle>
+                      <CardDescription>{t.comparison.enterStandardClause}</CardDescription>
                     </CardHeader>
                     <CardContent>
-                      <div className="space-y-2">
-                        <textarea className="w-full p-2 border rounded" placeholder="Paste clause to compare" id="compare-input" />
-                        <Button onClick={() => {
-                          const el = document.getElementById('compare-input') as HTMLTextAreaElement | null;
-                          if (el) handleCompare(el.value);
-                        }} disabled={compareMutation.isPending}>
-                          Compare
-                        </Button>
-                        {compareMutation.isPending && <p className="text-sm text-muted-foreground">Comparing clause...</p>}
-                        {comparisonResult && <div className="mt-2 text-sm text-muted-foreground">{comparisonResult}</div>}
-                      </div>
+                      <textarea
+                        value={standardClauseInput}
+                        onChange={(e) => setStandardClauseInput(e.target.value)}
+                        placeholder={`Example: "The employee may be terminated at-will with 30 days notice..."`}
+                        className="w-full p-3 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary h-40 resize-none"
+                      />
                     </CardContent>
                   </Card>
                 </div>
+
+                {/* Compare Button */}
+                <div className="flex gap-2">
+                  <Button
+                    onClick={() => handleCompare(selectedDocumentClause, standardClauseInput)}
+                    disabled={compareMutation.isPending || !selectedDocumentClause.trim() || !standardClauseInput.trim()}
+                    className="legal-button-primary"
+                  >
+                    {compareMutation.isPending ? (
+                      <>
+                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
+                        {t.comparison.comparing}
+                      </>
+                    ) : (
+                      <>
+                        <MessageSquare className="w-4 h-4 mr-2" />
+                        {t.comparison.compareButton}
+                      </>
+                    )}
+                  </Button>
+                  
+                  {!selectedDocumentClause.trim() || !standardClauseInput.trim() && !compareMutation.isPending && (
+                    <p className="text-sm text-muted-foreground my-auto">{t.comparison.enterBothClauses}</p>
+                  )}
+                </div>
+
+                {/* Comparison Result */}
+                {comparisonResult && (
+                  <Card className="border-primary/30 bg-primary/5">
+                    <CardHeader>
+                      <CardTitle className="text-base text-primary">{t.comparison.comparisonResult}</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="whitespace-pre-wrap text-sm leading-relaxed">{comparisonResult}</div>
+                    </CardContent>
+                  </Card>
+                )}
               </TabsContent>
 
           
+              <TabsContent value="qa" className="space-y-4">
+                <h3 className="text-lg font-semibold mb-4">{t.qa.title}</h3>
+                
+                {/* Q&A History */}
+                <div className="space-y-4 mb-6 max-h-96 overflow-y-auto bg-muted/30 rounded-lg p-4">
+                  {qaHistory.length === 0 ? (
+                    <p className="text-sm text-muted-foreground text-center py-4">No questions asked yet. Ask a question to get started!</p>
+                  ) : (
+                    qaHistory.map((item, idx) => (
+                      <div key={idx} className="space-y-2">
+                        <div className="bg-primary/10 rounded-lg p-3 border border-primary/20">
+                          <p className="text-sm font-semibold text-primary">Q: {item.question}</p>
+                        </div>
+                        <div className="bg-secondary/10 rounded-lg p-3 border border-secondary/20 ml-4">
+                          <p className="text-sm text-foreground whitespace-pre-wrap">A: {item.answer}</p>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+
+                {/* Q&A Input Form */}
+                <Card>
+                  <CardContent className="pt-6">
+                    <div className="space-y-4">
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          value={currentQuestion}
+                          onChange={(e) => setCurrentQuestion(e.target.value)}
+                          onKeyPress={(e) => {
+                            if (e.key === 'Enter' && !queryMutation.isPending && currentQuestion.trim()) {
+                              handleQuery(currentQuestion);
+                            }
+                          }}
+                          placeholder={t.qa.placeholder}
+                          className="flex-1 px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+                          disabled={queryMutation.isPending}
+                        />
+                        <Button 
+                          onClick={() => {
+                            if (currentQuestion.trim()) {
+                              handleQuery(currentQuestion);
+                            }
+                          }}
+                          disabled={queryMutation.isPending || !currentQuestion.trim()}
+                          className="legal-button-primary"
+                        >
+                          <MessageSquare className="w-4 h-4 mr-2" />
+                          {t.qa.send}
+                        </Button>
+                      </div>
+                      
+                      {queryMutation.isPending && (
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                          <div className="w-2 h-2 bg-primary rounded-full animate-pulse"></div>
+                          <span>Analyzing document...</span>
+                        </div>
+                      )}
+
+                      {qaAnswer && (
+                        <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-4">
+                          <p className="text-sm font-semibold text-green-900 dark:text-green-100 mb-2">Latest Answer:</p>
+                          <p className="text-sm text-green-800 dark:text-green-200 whitespace-pre-wrap">{qaAnswer}</p>
+                          <Button 
+                            variant="secondary" 
+                            size="sm"
+                            onClick={() => {
+                              if (qaAnswer && currentQuestion) {
+                                setQaHistory([...qaHistory, { question: currentQuestion, answer: qaAnswer }]);
+                                setCurrentQuestion("");
+                                setQaAnswer(null);
+                              }
+                            }}
+                            className="mt-2"
+                          >
+                            {t.qa.askAnother}
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              </TabsContent>
+
               <TabsContent value="voice">
                 <VoiceAssistantTab t={t} currentLanguage={currentLanguage} />
               </TabsContent>

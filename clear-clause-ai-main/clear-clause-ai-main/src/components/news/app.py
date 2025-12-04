@@ -1,6 +1,7 @@
 from flask import Flask, jsonify
 from flask_cors import CORS
 import feedparser
+import requests
 import logging
 from datetime import datetime
 import re
@@ -11,6 +12,10 @@ CORS(app)
 # Disable logging noise
 logging.getLogger("urllib3").setLevel(logging.CRITICAL)
 logging.getLogger("feedparser").setLevel(logging.CRITICAL)
+
+
+
+
 
 
 def extract_image_from_entry(entry):
@@ -81,21 +86,31 @@ def fetch_news_from_rss(topic: str):
     
     try:
         print(f"   📡 URL: {rss_url}")
-        
-        # Parse the RSS feed
-        feed = feedparser.parse(rss_url)
-        
-        # Check if feed parsed successfully
-        if not feed or 'entries' not in feed:
-            print(f"   ❌ Failed to parse feed")
+
+        # Fetch the RSS using requests with a browser-like User-Agent to avoid remote blocks
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) LegalAI/1.0"
+        }
+        resp = requests.get(rss_url, headers=headers, timeout=10)
+        if resp.status_code != 200:
+            print(f"   ❌ RSS fetch failed: status={resp.status_code}")
             return []
-        
-        print(f"   ✅ Feed parsed successfully, found {len(feed.entries)} entries")
+
+        # Parse the RSS content
+        feed = feedparser.parse(resp.content)
+
+        # Check if feed parsed successfully
+        entries = getattr(feed, "entries", None)
+        if not entries:
+            print(f"   ❌ Failed to parse feed or no entries found")
+            return []
+
+        print(f"   ✅ Feed parsed successfully, found {len(entries)} entries")
         
         articles = []
         seen_titles = set()
         
-        for idx, entry in enumerate(feed.entries[:10]):
+        for idx, entry in enumerate(entries[:10]):
             try:
                 # Extract basic fields
                 title = entry.get('title', '').strip()
@@ -182,31 +197,17 @@ def get_news(topic):
     print(f"\n✅ RETURNING {len(articles)} ARTICLES")
     return jsonify(articles), 200
 
-
 @app.route('/health', methods=['GET'])
 def health():
     """Health check endpoint"""
-    return jsonify({"status": "✅ Backend is running!", "port": 8000}), 200
+    return jsonify({"status": "✅ Backend is running!", "port": 3000}), 200
 
 
 if __name__ == '__main__':
     print("\n" + "="*70)
     print("🚀 LEGALAI NEWS BACKEND - GOOGLE NEWS RSS FEED")
     print("="*70)
-    print("📍 Server: http://localhost:8000")
+    print("📍 Server: http://localhost:3000")
     print("📰 Endpoint: GET /news/<topic>")
-    print("🔌 Source: Google News RSS (Fast, Stable, Never Blocked)")
-    print("\n💡 Examples:")
-    print("   • http://localhost:8000/news/technology")
-    print("   • http://localhost:8000/news/ai")
-    print("   • http://localhost:8000/news/legal")
-    print("   • http://localhost:8000/news/contracts")
-    print("   • http://localhost:8000/news/compliance")
-    print("   • http://localhost:8000/news/artificial+intelligence")
-    print("\n✨ Features:")
-    print("   ✓ Instant results (RSS is fast)")
-    print("   ✓ Never blocked (official Google feed)")
-    print("   ✓ Stable parsing (RSS format is consistent)")
-    print("   ✓ Production-ready error handling")
-    print("="*70 + "\n")
-    app.run(debug=False, port=8000, threaded=True)
+    ...
+    app.run(debug=False, port=3000, threaded=True)

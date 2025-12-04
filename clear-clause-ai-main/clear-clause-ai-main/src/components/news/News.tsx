@@ -24,7 +24,7 @@ interface NewsPageProps {
 }
 
 const CATEGORIES = ["Technology", "AI", "Legal", "Contracts", "Compliance"];
-const API_BASE_URL = "http://localhost:8000";
+const API_BASE_URL = "http://localhost:3000";
 
 export default function News({ currentLanguage }: NewsPageProps) {
   const [articles, setArticles] = useState<NewsArticle[]>([]);
@@ -73,14 +73,29 @@ export default function News({ currentLanguage }: NewsPageProps) {
     setLoading(true);
     setError("");
     try {
-      // Build Google News RSS URL for the topic
+      // First try backend proxy endpoint (recommended)
+      try {
+        const resp = await fetch(`${API_BASE_URL}/news/${encodeURIComponent(topic)}`);
+        if (resp.ok) {
+          const json = await resp.json();
+          if (Array.isArray(json)) {
+            setArticles(json as NewsArticle[]);
+            return;
+          }
+        }
+        // if backend returns non-OK fall through to client-side parsing fallback
+        console.warn('Backend news proxy failed, falling back to client-side RSS parsing');
+      } catch (e) {
+        console.warn('Backend news fetch error, falling back to client-side RSS parsing', e);
+      }
+
+      // Fallback: fetch RSS via public CORS proxy and parse XML in-browser
       const rssUrl = `https://news.google.com/rss/search?q=${encodeURIComponent(topic)}&hl=en-US&gl=US&ceid=US:en`;
-      // Use AllOrigins to avoid CORS issues (free proxy)
       const proxy = `https://api.allorigins.win/raw?url=${encodeURIComponent(rssUrl)}`;
 
-      const resp = await fetch(proxy);
-      if (!resp.ok) throw new Error('Failed to fetch news feed');
-      const xmlText = await resp.text();
+      const resp2 = await fetch(proxy);
+      if (!resp2.ok) throw new Error('Failed to fetch news feed');
+      const xmlText = await resp2.text();
 
       // Parse RSS XML
       const parser = new DOMParser();

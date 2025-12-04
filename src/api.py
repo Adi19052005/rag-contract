@@ -243,8 +243,16 @@ def upload_file(file: UploadFile = File(...)):
             logger.exception("Document extraction failed")
             raise HTTPException(status_code=500, detail=f"Document extraction failed: {e}")
 
+        # Validate that text was extracted
+        if not text or len(text.strip()) == 0:
+            raise HTTPException(status_code=400, detail="No text could be extracted from the document. Please ensure the file contains readable text.")
+
         # Chunk
         chunks = chunk_text(text, max_length=settings.CHUNK_SIZE, overlap=settings.CHUNK_OVERLAP)
+        
+        # Validate that chunks were created
+        if not chunks:
+            raise HTTPException(status_code=400, detail="Failed to create text chunks from document. Document may be too short or corrupted.")
 
         # Build index
         index, chunk_map = build_faiss_index(chunks)

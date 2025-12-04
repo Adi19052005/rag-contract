@@ -85,16 +85,17 @@ export default function Home({ currentLanguage }: HomeProps) {
             description: "Receive plain-language summaries and explanations",
             icon: FileText
           },
+          
           {
             step: "4",
-            title: "Voice Assistant",
-            description: "Ask questions and get voice explanations in your language",
-            icon: MessageSquare
+            title: "Compare Clauses",
+            description: "Compare with standard templates to identify unusual terms",
+            icon: CheckCircle
           },
           {
             step: "5",
-            title: "Compare Clauses",
-            description: "Compare with standard templates to identify unusual terms",
+            title: "Ask Questions",
+            description: "Retrieve any doubt about the doc in seconds",
             icon: CheckCircle
           }
         ]

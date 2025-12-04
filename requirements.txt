@@ -10,12 +10,14 @@ numpy
 pandas
 Pillow
 pytesseract
+google-generativeai
 
 # FastAPI backend dependencies
 fastapi
 uvicorn[standard]
 python-multipart
 pydantic
+pydantic-settings
 python-dotenv
 aiofiles
 

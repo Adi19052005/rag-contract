@@ -20,6 +20,8 @@ export function Navbar({ onLanguageToggle, currentLanguage }: NavbarProps) {
     { href: "/profile", label: "Profile", labelHi: "प्रोफ़ाइल" },
     { href: "/help", label: "Help", labelHi: "सहायता" },
     { href: "/contact", label: "Contact", labelHi: "संपर्क" },
+    { href: "/draft", label: "Draft", labelHi: "ड्राफ़्ट" },
+
   ];
 
   const isActive = (path: string) => location.pathname === path;
@@ -109,7 +111,7 @@ export function Navbar({ onLanguageToggle, currentLanguage }: NavbarProps) {
                 className="w-full justify-center mt-4"
               >
                 <Globe className="w-4 h-4 mr-2" />
-                {currentLanguage === "hi" ? "English" : "हिंदी"}
+                {currentLanguage === "hi" ? "हिंदी" : "English"}
               </Button>
             </div>
           </div>
